@@ -1,4 +1,5 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import {
   connectToDatabase,
   disconnectFromDatabase,
@@ -20,6 +21,7 @@ for (const name of ["MONGO_URI", "JWT_SECRET"]) {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api/auth", authRouter);
 
