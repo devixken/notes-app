@@ -8,6 +8,7 @@ services:
       - "3000:3000"
     environment:
       MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is not set}
     depends_on:
       mongo:
         condition: service_healthy
