@@ -15,6 +15,7 @@ if (!MONGO_URI) {
 }
 
 const app = express();
+app.disable("x-powered-by");
 app.use(express.json());
 
 app.get("/api/health", (req, res) => {
