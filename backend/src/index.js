@@ -4,6 +4,7 @@ import {
   disconnectFromDatabase,
   isDatabaseConnected,
 } from "./db.js";
+import { authRouter } from "./routes/auth.js";
 
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -17,6 +18,8 @@ if (!MONGO_URI) {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json());
+
+app.use("/api/auth", authRouter);
 
 app.get("/api/health", (req, res) => {
   const databaseUp = isDatabaseConnected();
