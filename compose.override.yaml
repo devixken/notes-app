@@ -1,6 +1,6 @@
 # Development only: live code reload without rebuilding the image
 services:
   backend:
-    command: ["node", "--watch", "src/index.js"]
+    command: ["node", "--watch", "src/server.js"]
     volumes:
       - ./backend/src:/app/src:ro
