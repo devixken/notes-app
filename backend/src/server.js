@@ -1,55 +1,28 @@
-import express from "express";
-import cookieParser from "cookie-parser";
-import {
-  connectToDatabase,
-  disconnectFromDatabase,
-  isDatabaseConnected,
-} from "./db.js";
-import { authRouter } from "./routes/auth.js";
+import { config } from "./config/env.js";
+import { connectToDatabase, disconnectFromDatabase } from "./db/connection.js";
+import { createApp } from "./app.js";
 
-const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
 const SHUTDOWN_TIMEOUT_MS = 8000;
 
-for (const name of ["MONGO_URI", "JWT_SECRET"]) {
-  if (!process.env[name]) {
-    console.error(`${name} is not set`);
-    process.exit(1);
-  }
-}
-
-const app = express();
-app.disable("x-powered-by");
-app.use(express.json());
-app.use(cookieParser());
-
-app.use("/api/auth", authRouter);
-
-app.get("/api/health", (req, res) => {
-  const databaseUp = isDatabaseConnected();
-  res.status(databaseUp ? 200 : 503).json({
-    status: databaseUp ? "ok" : "error",
-    database: databaseUp ? "up" : "down",
-  });
-});
+const app = createApp();
 
 let server;
 let isShuttingDown = false;
 
 async function start() {
   try {
-    await connectToDatabase(MONGO_URI);
+    await connectToDatabase(config.mongoUri);
   } catch (error) {
     console.error(`Failed to connect to MongoDB: ${error.message}`);
     process.exit(1);
   }
 
-  server = app.listen(PORT, "0.0.0.0", (error) => {
+  server = app.listen(config.port, "0.0.0.0", (error) => {
     if (error) {
       console.error(`Failed to start server: ${error.message}`);
       process.exit(1);
     }
-    console.log(`Backend is running on port ${PORT}`);
+    console.log(`Backend is running on port ${config.port}`);
   });
 }
 
