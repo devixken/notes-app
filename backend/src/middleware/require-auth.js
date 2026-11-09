@@ -1,16 +1,13 @@
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { AUTH_COOKIE_NAME, verifyToken } from "../services/auth.service.js";
 
 export function requireAuth(req, res, next) {
-  const token = req.cookies.token;
+  const token = req.cookies[AUTH_COOKIE_NAME];
   if (!token) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
-    req.userId = payload.sub;
+    req.userId = verifyToken(token);
     return next();
   } catch {
     return res.status(401).json({ error: "Invalid or expired token" });

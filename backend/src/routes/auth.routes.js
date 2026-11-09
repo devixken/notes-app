@@ -1,42 +1,22 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
-import jwt from "jsonwebtoken";
-
-import { User } from "../models/user.js";
-import { requireAuth } from "../middleware/auth.js";
-
-const BCRYPT_ROUNDS = 12;
-const JWT_SECRET = process.env.JWT_SECRET;
-const TOKEN_TTL_SECONDS = 60 * 60 * 24; // 1 day
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  sameSite: "lax",
-  // TODO: set secure: true once the app is served over HTTPS (Nginx stage)
-  secure: false,
-};
-
-const credentialsSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8).max(72),
-});
+import { User } from "../models/user.model.js";
+import { requireAuth } from "../middleware/require-auth.js";
+import { validate } from "../middleware/validate.js";
+import { credentialsSchema } from "../schemas/auth.schema.js";
+import {
+  AUTH_COOKIE_NAME,
+  authCookieOptions,
+  TOKEN_TTL_SECONDS,
+  hashPassword,
+  verifyPassword,
+  signToken,
+} from "../services/auth.service.js";
 
 export const authRouter = Router();
 
-authRouter.post("/register", async (req, res) => {
-  const result = credentialsSchema.safeParse(req.body);
-  if (!result.success) {
-    return res.status(400).json({
-      error: "Invalid input",
-      details: result.error.issues.map((issue) => ({
-        field: issue.path.join("."),
-        message: issue.message,
-      })),
-    });
-  }
-
-  const { email, password } = result.data;
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+authRouter.post("/register", validate(credentialsSchema), async (req, res) => {
+  const { email, password } = req.body;
+  const passwordHash = await hashPassword(password);
 
   try {
     const user = await User.create({ email, passwordHash });
@@ -49,29 +29,20 @@ authRouter.post("/register", async (req, res) => {
   }
 });
 
-authRouter.post("/login", async (req, res) => {
-  const result = credentialsSchema.safeParse(req.body);
-  if (!result.success) {
-    return res.status(400).json({ error: "Invalid input" });
-  }
-
-  const { email, password } = result.data;
+authRouter.post("/login", validate(credentialsSchema), async (req, res) => {
+  const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase() }).select(
     "+passwordHash",
   );
 
   const passwordOk =
-    user && (await bcrypt.compare(password, user.passwordHash));
+    user && (await verifyPassword(password, user.passwordHash));
   if (!passwordOk) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  const token = jwt.sign({ sub: user.id }, JWT_SECRET, {
-    expiresIn: TOKEN_TTL_SECONDS,
-  });
-
-  res.cookie("token", token, {
-    ...COOKIE_OPTIONS,
+  res.cookie(AUTH_COOKIE_NAME, signToken(user.id), {
+    ...authCookieOptions,
     maxAge: TOKEN_TTL_SECONDS * 1000,
   });
 
@@ -87,6 +58,6 @@ authRouter.get("/me", requireAuth, async (req, res) => {
 });
 
 authRouter.post("/logout", (req, res) => {
-  res.clearCookie("token", COOKIE_OPTIONS);
+  res.clearCookie(AUTH_COOKIE_NAME, authCookieOptions);
   return res.status(204).end();
 });
